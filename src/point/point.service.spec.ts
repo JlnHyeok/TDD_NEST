@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PointService } from './point.service';
 import { UserPointTable } from 'src/database/userpoint.table';
 import { PointHistoryTable } from 'src/database/pointhistory.table';
-import { UserPoint } from './point.model';
+import { PointHistory, UserPoint } from './point.model';
 
 describe('PointService', () => {
   let service: PointService;
@@ -58,7 +58,7 @@ describe('PointService', () => {
   });
 
   describe('포인트 조회 테스트', () => {
-    it('포인트 조회 테스트: ID가 0보다 큰 숫자가 들어올 때.', async () => {
+    it('포인트 조회 테스트: ID가 0보다 큰 숫자가 들어올 때 => 정상', async () => {
       service.getPoint(1).then((userPoint: UserPoint) => {
         expect(userPoint).toEqual({
           id: 1,
@@ -68,7 +68,7 @@ describe('PointService', () => {
       });
     });
 
-    it('포인트 조회 실패 테스트: ID가 0 이하의 숫자 들어올 때', async () => {
+    it('포인트 조회 실패 테스트: ID가 0 이하의 숫자 들어올 때 => 에러 발생', async () => {
       expect(service.getPoint(0)).rejects.toThrow(
         Error('올바르지 않은 ID 값 입니다.'),
       );
@@ -77,7 +77,7 @@ describe('PointService', () => {
       );
     });
 
-    it('포인트 조회 실패 테스트: ID가 숫자가 아닌 값이 들어올 때', async () => {
+    it('포인트 조회 실패 테스트: ID가 숫자가 아닌 값이 들어올 때 => 에러 발생', async () => {
       expect(service.getPoint(NaN)).rejects.toThrow(
         Error('올바르지 않은 ID 값 입니다.'),
       );
@@ -88,7 +88,7 @@ describe('PointService', () => {
   });
 
   describe('포인트 충전 테스트', () => {
-    it('포인트 충전 테스트: ID가 0보다 크고, 충전 금액이 0 보다 클 때', async () => {
+    it('포인트 충전 테스트: ID가 0보다 크고, 충전 금액이 0 보다 클 때 => 정상', async () => {
       await service.chargePoint(1, 100).then((userPoint: UserPoint) => {
         expect(userPoint).toEqual({
           id: 1,
@@ -106,7 +106,7 @@ describe('PointService', () => {
         expect.any(Number),
       );
     });
-    it('포인트 충전 테스트: ID가 0보다 크고, 충전 금액이 0 이하 일 때', async () => {
+    it('포인트 충전 테스트: ID가 0보다 크고, 충전 금액이 0 이하 일 때 => 에러 발생', async () => {
       expect(service.chargePoint(1, 0)).rejects.toThrow(
         Error('충전 및 사용 금액은 0보다 커야 합니다.'),
       );
@@ -114,7 +114,7 @@ describe('PointService', () => {
         Error('충전 및 사용 금액은 0보다 커야 합니다.'),
       );
     });
-    it('포인트 충전 테스트: ID가 0 이하이고, 충전 금액이 0 보다 클 때', async () => {
+    it('포인트 충전 테스트: ID가 0 이하이고, 충전 금액이 0 보다 클 때 => 에러 발생', async () => {
       expect(service.chargePoint(0, 100)).rejects.toThrow(
         Error('올바르지 않은 ID 값 입니다.'),
       );
@@ -122,7 +122,7 @@ describe('PointService', () => {
         Error('올바르지 않은 ID 값 입니다.'),
       );
     });
-    it('포인트 충전 테스트: ID가 0 이하이고, 충전 금액이 0 이하 일 때', async () => {
+    it('포인트 충전 테스트: ID가 0 이하이고, 충전 금액이 0 이하 일 때 => 에러 발생', async () => {
       expect(service.chargePoint(0, 0)).rejects.toThrow(
         Error('ID 값과 충전 및 사용 금액이 올바르지 않습니다.'),
       );
@@ -133,7 +133,7 @@ describe('PointService', () => {
   });
 
   describe('포인트 사용 테스트', () => {
-    it('포인트 사용 테스트: ID가 0보다 크고, 사용 금액이 0 보다 클 때', async () => {
+    it('포인트 사용 테스트: ID가 0보다 크고, 사용 금액이 0 보다 클 때 => 정상', async () => {
       await service.usePoint(1, 100).then((userPoint: UserPoint) => {
         expect(userPoint).toEqual({
           id: 1,
@@ -151,7 +151,7 @@ describe('PointService', () => {
         expect.any(Number),
       );
     });
-    it('포인트 사용 테스트: ID가 0보다 크고, 사용 금액이 0 이하 일 때', async () => {
+    it('포인트 사용 테스트: ID가 0보다 크고, 사용 금액이 0 이하 일 때 => 에러 발생', async () => {
       expect(service.usePoint(1, 0)).rejects.toThrow(
         Error('충전 및 사용 금액은 0보다 커야 합니다.'),
       );
@@ -159,7 +159,7 @@ describe('PointService', () => {
         Error('충전 및 사용 금액은 0보다 커야 합니다.'),
       );
     });
-    it('포인트 사용 테스트: ID가 0 이하이고, 사용 금액이 0 보다 클 때', async () => {
+    it('포인트 사용 테스트: ID가 0 이하이고, 사용 금액이 0 보다 클 때 => 에러 발생', async () => {
       expect(service.usePoint(0, 100)).rejects.toThrow(
         Error('올바르지 않은 ID 값 입니다.'),
       );
@@ -167,7 +167,7 @@ describe('PointService', () => {
         Error('올바르지 않은 ID 값 입니다.'),
       );
     });
-    it('포인트 사용 테스트: ID가 0 이하이고, 사용 금액이 0 이하 일 때', async () => {
+    it('포인트 사용 테스트: ID가 0 이하이고, 사용 금액이 0 이하 일 때 => 에러 발생', async () => {
       expect(service.usePoint(0, 0)).rejects.toThrow(
         Error('ID 값과 충전 및 사용 금액이 올바르지 않습니다.'),
       );
@@ -175,9 +175,53 @@ describe('PointService', () => {
         Error('ID 값과 충전 및 사용 금액이 올바르지 않습니다.'),
       );
     });
-    it('포인트 사용 실패 테스트: 포인트가 부족할 때', async () => {
+    it('포인트 사용 실패 테스트: 포인트가 부족할 때 => 에러 발생', async () => {
       expect(service.usePoint(1, 200)).rejects.toThrow(
         Error('포인트가 부족합니다.'),
+      );
+    });
+  });
+
+  describe('포인트 내역 조회 테스트', () => {
+    it('포인트 내역 조회 테스트: ID가 0보다 큰 숫자가 들어올 때 => 정상', async () => {
+      jest.spyOn(pointHistoryTable, 'selectAllByUserId').mockResolvedValue([
+        {
+          id: 1,
+          userId: 1,
+          amount: 100,
+          type: 0,
+          timeMillis: Date.now(),
+        },
+      ]);
+
+      await service.getHistory(1).then((histories: PointHistory[]) => {
+        expect(histories).toEqual([
+          {
+            id: 1,
+            userId: 1,
+            amount: 100,
+            type: 0,
+            timeMillis: expect.any(Number),
+          },
+        ]);
+      });
+    });
+
+    it('포인트 내역 조회 실패 테스트: ID가 0 이하의 숫자 들어올 때 => 에러 발생', async () => {
+      expect(service.getHistory(0)).rejects.toThrow(
+        Error('올바르지 않은 ID 값 입니다.'),
+      );
+      expect(service.getHistory(-1)).rejects.toThrow(
+        Error('올바르지 않은 ID 값 입니다.'),
+      );
+    });
+
+    it('포인트 내역 조회 실패 테스트: ID가 숫자가 아닌 값이 들어올 때 => 에러 발생', async () => {
+      expect(service.getHistory(NaN)).rejects.toThrow(
+        Error('올바르지 않은 ID 값 입니다.'),
+      );
+      expect(service.getHistory(Infinity)).rejects.toThrow(
+        Error('올바르지 않은 ID 값 입니다.'),
       );
     });
   });
