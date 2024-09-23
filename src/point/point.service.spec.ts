@@ -108,10 +108,10 @@ describe('PointService', () => {
     });
     it('포인트 충전 테스트: ID가 0보다 크고, 충전 금액이 0 이하 일 때', async () => {
       expect(service.chargePoint(1, 0)).rejects.toThrow(
-        Error('충전 금액은 0보다 커야 합니다.'),
+        Error('충전 및 사용 금액은 0보다 커야 합니다.'),
       );
       expect(service.chargePoint(1, -1)).rejects.toThrow(
-        Error('충전 금액은 0보다 커야 합니다.'),
+        Error('충전 및 사용 금액은 0보다 커야 합니다.'),
       );
     });
     it('포인트 충전 테스트: ID가 0 이하이고, 충전 금액이 0 보다 클 때', async () => {
@@ -124,10 +124,10 @@ describe('PointService', () => {
     });
     it('포인트 충전 테스트: ID가 0 이하이고, 충전 금액이 0 이하 일 때', async () => {
       expect(service.chargePoint(0, 0)).rejects.toThrow(
-        Error('ID 값과 충전 금액이 올바르지 않습니다.'),
+        Error('ID 값과 충전 및 사용 금액이 올바르지 않습니다.'),
       );
       expect(service.chargePoint(-1, 0)).rejects.toThrow(
-        Error('ID 값과 충전 금액이 올바르지 않습니다.'),
+        Error('ID 값과 충전 및 사용 금액이 올바르지 않습니다.'),
       );
     });
   });
@@ -153,10 +153,10 @@ describe('PointService', () => {
     });
     it('포인트 사용 테스트: ID가 0보다 크고, 사용 금액이 0 이하 일 때', async () => {
       expect(service.usePoint(1, 0)).rejects.toThrow(
-        Error('사용 금액은 0보다 커야 합니다.'),
+        Error('충전 및 사용 금액은 0보다 커야 합니다.'),
       );
       expect(service.usePoint(1, -1)).rejects.toThrow(
-        Error('사용 금액은 0보다 커야 합니다.'),
+        Error('충전 및 사용 금액은 0보다 커야 합니다.'),
       );
     });
     it('포인트 사용 테스트: ID가 0 이하이고, 사용 금액이 0 보다 클 때', async () => {
@@ -169,10 +169,15 @@ describe('PointService', () => {
     });
     it('포인트 사용 테스트: ID가 0 이하이고, 사용 금액이 0 이하 일 때', async () => {
       expect(service.usePoint(0, 0)).rejects.toThrow(
-        Error('ID 값과 사용 금액이 올바르지 않습니다.'),
+        Error('ID 값과 충전 및 사용 금액이 올바르지 않습니다.'),
       );
       expect(service.usePoint(-1, 0)).rejects.toThrow(
-        Error('ID 값과 사용 금액이 올바르지 않습니다.'),
+        Error('ID 값과 충전 및 사용 금액이 올바르지 않습니다.'),
+      );
+    });
+    it('포인트 사용 실패 테스트: 포인트가 부족할 때', async () => {
+      expect(service.usePoint(1, 200)).rejects.toThrow(
+        Error('포인트가 부족합니다.'),
       );
     });
   });
