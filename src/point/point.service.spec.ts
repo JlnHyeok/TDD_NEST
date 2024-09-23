@@ -1,0 +1,179 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { PointService } from './point.service';
+import { UserPointTable } from 'src/database/userpoint.table';
+import { PointHistoryTable } from 'src/database/pointhistory.table';
+import { UserPoint } from './point.model';
+
+describe('PointService', () => {
+  let service: PointService;
+  let userPointTable: UserPointTable;
+  let pointHistoryTable: PointHistoryTable;
+
+  beforeEach(async () => {
+    // TODO (완): Mocking 처리를 하는 부분으로, 실제 DB에 접근하지 않도록 처리 필요.
+    // Mocking 처리를 하기 위해 useValue 부분에 jest.fn()을 사용하여 Mocking 처리를 함.
+    // 기존 코드에서는 Mocking 처리를 하지 않았기 때문에, 실제 DB에 접근하는 코드가 테스트에 포함되어 있다.
+    // 테스트를 위한 UserPointTable, PointHistoryTable 인스턴스 생성
+    // userPointTable = new UserPointTable();
+    // pointHistoryTable = new PointHistoryTable();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        PointService,
+        {
+          provide: UserPointTable,
+          useValue:
+            // userPointTable,
+            {
+              selectById: jest.fn(),
+              insertOrUpdate: jest.fn(),
+            },
+        },
+        {
+          provide: PointHistoryTable,
+          useValue:
+            // pointHistoryTable,
+            {
+              insert: jest.fn(),
+              selectAllByUserId: jest.fn(),
+            },
+        },
+      ],
+    }).compile();
+
+    service = module.get<PointService>(PointService);
+    userPointTable = module.get<UserPointTable>(UserPointTable);
+    pointHistoryTable = module.get<PointHistoryTable>(PointHistoryTable);
+
+    // 전체 테스트에 기본적으로 사용할 Mocking 함수를 정의 (DB 조회)
+    jest.spyOn(userPointTable, 'selectById').mockResolvedValue({
+      id: 1,
+      point: 150,
+      updateMillis: Date.now(),
+    });
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('포인트 조회 테스트', () => {
+    it('포인트 조회 테스트: ID가 0보다 큰 숫자가 들어올 때.', async () => {
+      service.getPoint(1).then((userPoint: UserPoint) => {
+        expect(userPoint).toEqual({
+          id: 1,
+          point: 150,
+          updateMillis: expect.any(Number),
+        });
+      });
+    });
+
+    it('포인트 조회 실패 테스트: ID가 0 이하의 숫자 들어올 때', async () => {
+      expect(service.getPoint(0)).rejects.toThrow(
+        Error('올바르지 않은 ID 값 입니다.'),
+      );
+      expect(service.getPoint(-1)).rejects.toThrow(
+        Error('올바르지 않은 ID 값 입니다.'),
+      );
+    });
+
+    it('포인트 조회 실패 테스트: ID가 숫자가 아닌 값이 들어올 때', async () => {
+      expect(service.getPoint(NaN)).rejects.toThrow(
+        Error('올바르지 않은 ID 값 입니다.'),
+      );
+      expect(service.getPoint(Infinity)).rejects.toThrow(
+        Error('올바르지 않은 ID 값 입니다.'),
+      );
+    });
+  });
+
+  describe('포인트 충전 테스트', () => {
+    it('포인트 충전 테스트: ID가 0보다 크고, 충전 금액이 0 보다 클 때', async () => {
+      await service.chargePoint(1, 100).then((userPoint: UserPoint) => {
+        expect(userPoint).toEqual({
+          id: 1,
+          point: 250,
+          updateMillis: expect.any(Number),
+        });
+      });
+
+      expect(userPointTable.selectById).toHaveBeenCalledWith(1);
+      expect(userPointTable.insertOrUpdate).toHaveBeenCalledWith(1, 250);
+      expect(pointHistoryTable.insert).toHaveBeenCalledWith(
+        1,
+        100,
+        0,
+        expect.any(Number),
+      );
+    });
+    it('포인트 충전 테스트: ID가 0보다 크고, 충전 금액이 0 이하 일 때', async () => {
+      expect(service.chargePoint(1, 0)).rejects.toThrow(
+        Error('충전 금액은 0보다 커야 합니다.'),
+      );
+      expect(service.chargePoint(1, -1)).rejects.toThrow(
+        Error('충전 금액은 0보다 커야 합니다.'),
+      );
+    });
+    it('포인트 충전 테스트: ID가 0 이하이고, 충전 금액이 0 보다 클 때', async () => {
+      expect(service.chargePoint(0, 100)).rejects.toThrow(
+        Error('올바르지 않은 ID 값 입니다.'),
+      );
+      expect(service.chargePoint(-1, 100)).rejects.toThrow(
+        Error('올바르지 않은 ID 값 입니다.'),
+      );
+    });
+    it('포인트 충전 테스트: ID가 0 이하이고, 충전 금액이 0 이하 일 때', async () => {
+      expect(service.chargePoint(0, 0)).rejects.toThrow(
+        Error('ID 값과 충전 금액이 올바르지 않습니다.'),
+      );
+      expect(service.chargePoint(-1, 0)).rejects.toThrow(
+        Error('ID 값과 충전 금액이 올바르지 않습니다.'),
+      );
+    });
+  });
+
+  describe('포인트 사용 테스트', () => {
+    it('포인트 사용 테스트: ID가 0보다 크고, 사용 금액이 0 보다 클 때', async () => {
+      await service.usePoint(1, 100).then((userPoint: UserPoint) => {
+        expect(userPoint).toEqual({
+          id: 1,
+          point: 50,
+          updateMillis: expect.any(Number),
+        });
+      });
+
+      expect(userPointTable.selectById).toHaveBeenCalledWith(1);
+      expect(userPointTable.insertOrUpdate).toHaveBeenCalledWith(1, 50);
+      expect(pointHistoryTable.insert).toHaveBeenCalledWith(
+        1,
+        100,
+        1,
+        expect.any(Number),
+      );
+    });
+    it('포인트 사용 테스트: ID가 0보다 크고, 사용 금액이 0 이하 일 때', async () => {
+      expect(service.usePoint(1, 0)).rejects.toThrow(
+        Error('사용 금액은 0보다 커야 합니다.'),
+      );
+      expect(service.usePoint(1, -1)).rejects.toThrow(
+        Error('사용 금액은 0보다 커야 합니다.'),
+      );
+    });
+    it('포인트 사용 테스트: ID가 0 이하이고, 사용 금액이 0 보다 클 때', async () => {
+      expect(service.usePoint(0, 100)).rejects.toThrow(
+        Error('올바르지 않은 ID 값 입니다.'),
+      );
+      expect(service.usePoint(-1, 100)).rejects.toThrow(
+        Error('올바르지 않은 ID 값 입니다.'),
+      );
+    });
+    it('포인트 사용 테스트: ID가 0 이하이고, 사용 금액이 0 이하 일 때', async () => {
+      expect(service.usePoint(0, 0)).rejects.toThrow(
+        Error('ID 값과 사용 금액이 올바르지 않습니다.'),
+      );
+      expect(service.usePoint(-1, 0)).rejects.toThrow(
+        Error('ID 값과 사용 금액이 올바르지 않습니다.'),
+      );
+    });
+  });
+});
