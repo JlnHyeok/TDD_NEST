@@ -3,7 +3,7 @@ import { PointService } from './point.service';
 import { UserPointTable } from 'src/database/userpoint.table';
 import { PointHistoryTable } from 'src/database/pointhistory.table';
 import { PointHistory, UserPoint } from './point.model';
-import { RequestQueue } from 'src/utils/requestQueue';
+import { UserRequestQueue } from 'src/utils/user-request-queue';
 
 describe('PointService', () => {
   let service: PointService;
@@ -23,7 +23,7 @@ describe('PointService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PointService,
-        RequestQueue,
+        UserRequestQueue,
         {
           provide: UserPointTable,
           useValue:
