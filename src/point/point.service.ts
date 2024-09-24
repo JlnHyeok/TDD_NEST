@@ -1,14 +1,13 @@
 import {
   BadRequestException,
-  ForbiddenException,
   HttpException,
   Injectable,
   InternalServerErrorException,
-  NotFoundException,
 } from '@nestjs/common';
 import { UserPointTable } from 'src/database/userpoint.table';
 import { PointHistoryTable } from 'src/database/pointhistory.table';
 import { PointHistory, TransactionType, UserPoint } from './point.model';
+import { RequestQueue } from 'src/utils/requestQueue';
 
 @Injectable()
 // TODO: PointService 클래스 구현.
@@ -16,6 +15,7 @@ export class PointService {
   constructor(
     private readonly userDb: UserPointTable,
     private readonly historyDb: PointHistoryTable,
+    private readonly requestQueue: RequestQueue,
   ) {}
 
   // TODO: 특정 유저의 포인트를 조회하는 기능 구현.
@@ -59,19 +59,20 @@ export class PointService {
 
     // 충전 중 에러가 발생할 경우, 에러 처리를 위해 try-catch 문 사용
     try {
-      // 유저 포인트 조회
-      const user = await this.userDb.selectById(userId);
+      const newRequest = this.requestQueue.addToQueue(async () => {
+        const user = await this.userDb.selectById(userId);
+        const updatedUser = await this.updateUserPoint(
+          user,
+          amount,
+          TransactionType.CHARGE,
+        );
+        return updatedUser;
+      });
 
-      // 유저 포인트 업데이트 및 충전 내역 History 추가
-      const updatedUser = await this.updateUserPoint(
-        user,
-        amount,
-        TransactionType.CHARGE,
-      );
-
-      // 충전된 포인트를 포함한 유저 정보 반환
-      return updatedUser;
+      return newRequest;
     } catch (e) {
+      if (e instanceof HttpException) throw e;
+
       throw new InternalServerErrorException(
         '포인트 충전 중 시스템 에러가 발생했습니다.',
       );
@@ -85,30 +86,22 @@ export class PointService {
 
     // 사용 중 에러가 발생할 경우, 에러 처리를 위해 try-catch 문 사용
     try {
-      // 유저 포인트 조회
-      const user = await this.userDb.selectById(userId);
+      const newRequest = this.requestQueue.addToQueue(async () => {
+        const user = await this.userDb.selectById(userId);
+        const updatedUser = await this.updateUserPoint(
+          user,
+          amount,
+          TransactionType.USE,
+        );
+        return updatedUser;
+      });
 
-      // 사용할 포인트가 유저의 포인트보다 클 경우 에러 처리
-      if (user.point < amount) {
-        throw new BadRequestException('포인트가 부족합니다.');
-      }
-
-      // 유저 포인트 업데이트 및 사용 내역 History 추가
-      const updatedUser = await this.updateUserPoint(
-        user,
-        amount,
-        TransactionType.USE,
-      );
-
-      // 사용된 포인트를 포함한 유저 정보 반환
-      return updatedUser;
+      return newRequest;
     } catch (e) {
-      // HttpException이 발생한 경우, 해당 에러를 throw
       if (e instanceof HttpException) throw e;
 
-      // 그 외의 경우, InternalServerErrorException throw
       throw new InternalServerErrorException(
-        '포인트 사용 중 시스템 에러가 발생했습니다.',
+        '포인트 사용 중 시스템 에러가 발생했습니다',
       );
     }
   }
@@ -144,14 +137,28 @@ export class PointService {
     switch (type) {
       // 충전
       case TransactionType.CHARGE:
+        // 충전 금액이 100,000원을 초과할 경우, 에러 처리
+        if (amount > 100_000) {
+          throw new BadRequestException('포인트 충전 한도는 100,000원 입니다.');
+        }
+
+        if (point + amount > 100_000) {
+          throw new BadRequestException('포인트 소지 한도는 100,000원 입니다.');
+        }
+
         await this.userDb.insertOrUpdate(id, point + amount);
         await this.historyDb.insert(id, amount, type, currentMillis);
         return { id, point: point + amount, updateMillis: currentMillis };
 
       // 사용
       case TransactionType.USE:
-        this.userDb.insertOrUpdate(id, point - amount);
-        this.historyDb.insert(id, amount, type, currentMillis);
+        // 사용할 포인트가 유저의 포인트보다 클 경우 에러 처리
+        if (point < amount) {
+          throw new BadRequestException('포인트가 부족합니다.');
+        }
+
+        await this.userDb.insertOrUpdate(id, point - amount);
+        await this.historyDb.insert(id, amount, type, currentMillis);
         return { id, point: point - amount, updateMillis: currentMillis };
 
       // 기타
