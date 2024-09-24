@@ -69,6 +69,7 @@ export class PointService {
   async chargePoint(userId: number, amount: number): Promise<UserPoint> {
     // Validation
     this.validateUserIdAndAmount(userId, amount);
+    this.validateUserIdAndAmount(userId, amount);
 
     // 충전 중 에러가 발생할 경우, 에러 처리를 위해 try-catch 문 사용
     try {
@@ -98,6 +99,7 @@ export class PointService {
   // TODO: 특정 유저의 포인트를 사용하는 기능 구현.
   async usePoint(userId: number, amount: number): Promise<UserPoint> {
     // Validation
+    this.validateUserIdAndAmount(userId, amount);
     this.validateUserIdAndAmount(userId, amount);
 
     // 사용 중 에러가 발생할 경우, 에러 처리를 위해 try-catch 문 사용
