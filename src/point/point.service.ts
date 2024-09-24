@@ -10,7 +10,7 @@ import { PointHistory, TransactionType, UserPoint } from './point.model';
 import { UserRequestQueue } from 'src/utils/user-request-queue';
 
 @Injectable()
-// TODO: 동시성 문제를 해결하기 위해 RequestQueue를 사용하여 구현.
+// TODO: 코드 리팩토링 필요
 export class PointService {
   constructor(
     private readonly userDb: UserPointTable,
@@ -67,6 +67,8 @@ export class PointService {
 
   // TODO: 특정 유저의 포인트를 충전하는 기능 구현.
   async chargePoint(userId: number, amount: number): Promise<UserPoint> {
+    let originalPoint: number;
+
     // Validation
     this.validateUserIdAndAmount(userId, amount);
 
@@ -76,6 +78,8 @@ export class PointService {
         userId,
         async () => {
           const user = await this.userDb.selectById(userId);
+          originalPoint = user.point;
+
           const updatedUser = await this.updateUserPoint(
             user,
             amount,
@@ -87,8 +91,13 @@ export class PointService {
 
       return response;
     } catch (e) {
+      // 충전 중 에러가 발생할 경우, 원래 포인트로 롤백
+      if (originalPoint) this.userDb.insertOrUpdate(userId, originalPoint);
+
+      // HttpException이 발생한 경우, 해당 에러를 throw
       if (e instanceof HttpException) throw e;
 
+      // 그 외의 에러가 발생한 경우, InternalServerErrorException throw
       throw new InternalServerErrorException(
         '포인트 충전 중 시스템 에러가 발생했습니다.',
       );
@@ -97,6 +106,8 @@ export class PointService {
 
   // TODO: 특정 유저의 포인트를 사용하는 기능 구현.
   async usePoint(userId: number, amount: number): Promise<UserPoint> {
+    let originalPoint: number;
+
     // Validation
     this.validateUserIdAndAmount(userId, amount);
 
@@ -106,6 +117,8 @@ export class PointService {
         userId,
         async () => {
           const user = await this.userDb.selectById(userId);
+          originalPoint = user.point;
+
           const updatedUser = await this.updateUserPoint(
             user,
             amount,
@@ -117,8 +130,13 @@ export class PointService {
 
       return response;
     } catch (e) {
+      // 사용 중 에러가 발생할 경우, 원래 포인트로 롤백
+      if (originalPoint) this.userDb.insertOrUpdate(userId, originalPoint);
+
+      // HttpException이 발생한 경우, 해당 에러를 throw
       if (e instanceof HttpException) throw e;
 
+      // 그 외의 에러가 발생한 경우, InternalServerErrorException throw
       throw new InternalServerErrorException(
         '포인트 사용 중 시스템 에러가 발생했습니다',
       );
