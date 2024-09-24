@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -9,8 +8,6 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { PointHistory, TransactionType, UserPoint } from './point.model';
-import { UserPointTable } from 'src/database/userpoint.table';
-import { PointHistoryTable } from 'src/database/pointhistory.table';
 import { PointBody as PointDto } from './point.dto';
 import { PointService } from './point.service';
 import { HttpExceptionFilter } from 'src/http-exception.filter';
