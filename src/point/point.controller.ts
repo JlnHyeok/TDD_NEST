@@ -8,7 +8,7 @@ import {
   UseFilters,
   ValidationPipe,
 } from '@nestjs/common';
-import { PointHistory, TransactionType, UserPoint } from './point.model';
+import { PointHistory, UserPoint } from './point.model';
 import { PointBody as PointDto } from './point.dto';
 import { PointService } from './point.service';
 import { HttpExceptionFilter } from 'src/http-exception.filter';

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
-import { AppModule } from './../src/app.module';
+import { AppModule } from '../src/app.module';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
@@ -19,20 +19,29 @@ describe('AppController (e2e)', () => {
     await app.close();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
-  });
-
-  it('동시 충전 요청', async () => {
+  it('동시 충전 요청 => 요청이 순서대로 들어와야합니다.', async () => {
+    // 테스트 데이터
     const userId = 1;
-    const chargeAmount = [100, 50, 10];
-    const expectedPoint = [100, 150, 160];
+    const requestAmount = 5;
+    const chargeAmount = [100, 50, 10, 30, 20];
+    const transactionType = 0;
 
-    // 포인트 충전 요청을 동시에 3개 보냅니다.
-    const chargeRequests = Array(3)
+    // 예상 결과
+    const expectedPoint = [100, 150, 160, 190, 210];
+    const expectedHistory = chargeAmount.map(
+      (chargeAmount: number, id: number) => {
+        return {
+          userId,
+          id: id + 1,
+          amount: chargeAmount,
+          type: transactionType,
+          timeMillis: expect.any(Number),
+        };
+      },
+    );
+
+    //  동시에 5개의 포인트 충전 요청 전송.
+    const chargeRequests = Array(requestAmount)
       .fill(0)
       .map((_, i) => {
         return request(app.getHttpServer())
@@ -42,7 +51,7 @@ describe('AppController (e2e)', () => {
       });
     const results = await Promise.all(chargeRequests);
 
-    // 결과를 확인합니다.
+    // 포인트 충전 결과 비교.
     results.forEach((res, i) => {
       expect(res.body).toEqual({
         id: userId,
@@ -50,20 +59,54 @@ describe('AppController (e2e)', () => {
         updateMillis: expect.any(Number),
       });
     });
+
+    // History 조회.
+    const historyRes = await request(app.getHttpServer()).get(
+      `/point/${userId}/histories`,
+    );
+
+    // History 결과 비교.
+    expect(historyRes.body).toEqual(expectedHistory);
   });
 
-  it('동시 사용 요청', async () => {
+  it('동시 사용 요청 => 요청이 순서대로 들어와야합니다.', async () => {
+    // 테스트 데이터
     const userId = 1;
-    const useAmount = [10, 50, 100];
-    const expectedPoint = [150, 100, 0];
+    const requestAmount = 5;
+    const initialPoint = 5000;
+    const useAmount = [1000, 500, 100, 320, 250];
 
-    // 포인트 충전을 먼저 합니다.
+    // 예상 결과
+    const expectedPoint = [4000, 3500, 3400, 3080, 2830];
+    const expectedHistory = useAmount.reduce(
+      (acc, currentPoint, i) => {
+        acc.push({
+          userId,
+          id: i + 2,
+          amount: currentPoint,
+          type: 1,
+          timeMillis: expect.any(Number),
+        });
+        return acc;
+      },
+      [
+        {
+          userId,
+          id: 1,
+          amount: 5000,
+          type: 0,
+          timeMillis: expect.any(Number),
+        },
+      ],
+    );
+
+    // 먼저 포인트 충전 요청 전송.
     await request(app.getHttpServer())
       .patch(`/point/${userId}/charge`)
-      .send({ amount: 160 });
+      .send({ amount: initialPoint });
 
-    // 포인트 사용 요청을 동시에 3개 보냅니다.
-    const useRequests = Array(3)
+    // 동시에 5개의 포인트 사용 요청 전송.
+    const useRequests = Array(requestAmount)
       .fill(0)
       .map((_, i) => {
         return request(app.getHttpServer())
@@ -73,7 +116,7 @@ describe('AppController (e2e)', () => {
       });
     const results = await Promise.all(useRequests);
 
-    // 결과를 확인합니다.
+    // 포인트 사용 결과 비교.
     results.forEach((res, i) => {
       expect(res.body).toEqual({
         id: userId,
@@ -81,5 +124,13 @@ describe('AppController (e2e)', () => {
         updateMillis: expect.any(Number),
       });
     });
+
+    // History 조회.
+    const historyRes = await request(app.getHttpServer()).get(
+      `/point/${userId}/histories`,
+    );
+
+    // History 결과 비교.
+    expect(historyRes.body).toEqual(expectedHistory);
   });
 });
