@@ -14,9 +14,9 @@ describe('PointService', () => {
     jest.clearAllMocks();
 
     // TODO (완): Mocking 처리를 하는 부분으로, 실제 DB에 접근하지 않도록 처리 필요.
-    // Mocking 처리를 하기 위해 useValue 부분에 jest.fn()을 사용하여 Mocking 처리를 함.
-    // 기존 코드에서는 Mocking 처리를 하지 않았기 때문에, 실제 DB에 접근하는 코드가 테스트에 포함되어 있다.
-    // 테스트를 위한 UserPointTable, PointHistoryTable 인스턴스 생성
+    // 1. Mocking 처리를 하기 위해 useValue 부분에 jest.fn()을 사용하여 Mocking 처리를 함.
+    // 2. 기존 코드에서는 Mocking 처리를 하지 않았기 때문에, 실제 DB에 접근하는 코드가 테스트에 포함되어 있다.
+    // 3. 테스트를 위한 UserPointTable, PointHistoryTable 인스턴스 생성
     // userPointTable = new UserPointTable();
     // pointHistoryTable = new PointHistoryTable();
 
@@ -85,6 +85,16 @@ describe('PointService', () => {
         Error('올바르지 않은 ID 값 입니다.'),
       );
     });
+    it('포인트 조회 실패 테스트: User DB 조회 에러 시 => 시스템 에러 발생', async () => {
+      // DB 조회 시 에러 발생하도록 Mocking 처리
+      jest
+        .spyOn(userPointTable, 'selectById')
+        .mockRejectedValue(new Error('Error'));
+
+      expect(service.getPoint(1)).rejects.toThrow(
+        Error('포인트 조회 중 시스템 에러가 발생했습니다.'),
+      );
+    });
   });
 
   // INITIAL POINT: 150
@@ -147,6 +157,16 @@ describe('PointService', () => {
         Error('포인트 소지 한도는 100,000원 입니다.'),
       );
     });
+    it('포인트 충전 실패 테스트: History DB Insert 에러 시 => 시스템 에러 발생', async () => {
+      // History DB Insert 시 에러 발생하도록 Mocking 처리
+      jest
+        .spyOn(pointHistoryTable, 'insert')
+        .mockRejectedValue(new Error('Error'));
+
+      expect(service.chargePoint(1, 100)).rejects.toThrow(
+        Error('시스템 에러가 발생했습니다.'),
+      );
+    });
   });
 
   // INITIAL POINT: 150
@@ -204,6 +224,16 @@ describe('PointService', () => {
         Error('포인트가 부족합니다.'),
       );
     });
+    it('포인트 사용 실패 테스트: History DB Insert 에러 시 => 시스템 에러 발생', async () => {
+      // DB Insert 시 에러 발생하도록 Mocking 처리
+      jest
+        .spyOn(pointHistoryTable, 'insert')
+        .mockRejectedValue(new Error('Error'));
+
+      expect(service.usePoint(1, 100)).rejects.toThrow(
+        Error('시스템 에러가 발생했습니다.'),
+      );
+    });
   });
 
   describe('포인트 충전 및 사용 내역 조회 테스트', () => {
@@ -246,6 +276,16 @@ describe('PointService', () => {
       );
       expect(service.getHistory(Infinity)).rejects.toThrow(
         Error('올바르지 않은 ID 값 입니다.'),
+      );
+    });
+    it('포인트 내역 조회 실패 테스트: History DB 조회 에러 시 => 시스템 에러 발생', async () => {
+      // DB 조회 시 에러 발생하도록 Mocking 처리
+      jest
+        .spyOn(pointHistoryTable, 'selectAllByUserId')
+        .mockRejectedValue(new Error('Error'));
+
+      expect(service.getHistory(1)).rejects.toThrow(
+        Error('포인트 내역 조회 중 시스템 에러가 발생했습니다.'),
       );
     });
   });
