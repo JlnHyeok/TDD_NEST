@@ -20,20 +20,16 @@ export class PointService {
 
   // 특정 유저의 포인트를 조회하는 기능.
   async getPoint(userId: number): Promise<UserPoint> {
-    // selectById 내부에서 Validation 처리를 하고 있기 때문에 별도의 Validation 처리는 구현하지 않음.
+    // Validation
     if (!Number.isInteger(userId) || userId <= 0) {
       throw new BadRequestException('올바르지 않은 ID 값 입니다.');
     }
 
+    // 포인트 조회 중 에러가 발생할 경우, 에러 처리를 위해 try-catch 문 사용
     try {
-      const response = this.requestQueue.addToQueue<UserPoint>(
-        userId,
-        async () => {
-          const user = await this.userDb.selectById(userId);
-          return user;
-        },
-      );
-      return response;
+      // UserRequestQueue를 사용하여 동일한 User ID에 대한 요청이 동시에 발생할 경우, 요청을 순차적으로 처리하도록 함.
+      const user = await this.userDb.selectById(userId);
+      return user;
     } catch (e) {
       throw new InternalServerErrorException(
         '포인트 조회 중 시스템 에러가 발생했습니다.',
@@ -41,23 +37,17 @@ export class PointService {
     }
   }
 
-  // TODO: 특정 유저의 포인트 충전/이용 내역을 조회하는 기능 구현.
+  // 특정 유저의 포인트 충전/이용 내역을 조회하는 기능 구현.
   async getHistory(userId: number): Promise<PointHistory[]> {
     // Validation
     if (!Number.isInteger(userId) || userId <= 0) {
       throw new BadRequestException('올바르지 않은 ID 값 입니다.');
     }
 
+    // 포인트 내역 조회 중 에러가 발생할 경우, 에러 처리를 위해 try-catch 문 사용
     try {
-      const response = this.requestQueue.addToQueue<PointHistory[]>(
-        userId,
-        async () => {
-          const history = await this.historyDb.selectAllByUserId(userId);
-          return history;
-        },
-      );
-
-      return response;
+      const history = await this.historyDb.selectAllByUserId(userId);
+      return history;
     } catch (e) {
       throw new InternalServerErrorException(
         '포인트 내역 조회 중 시스템 에러가 발생했습니다.',
@@ -65,84 +55,23 @@ export class PointService {
     }
   }
 
-  // TODO: 특정 유저의 포인트를 충전하는 기능 구현.
+  // 특정 유저의 포인트를 충전하는 기능 구현.
   async chargePoint(userId: number, amount: number): Promise<UserPoint> {
-    let originalPoint: number;
-
     // Validation
     this.validateUserIdAndAmount(userId, amount);
 
-    // 충전 중 에러가 발생할 경우, 에러 처리를 위해 try-catch 문 사용
-    try {
-      const response = this.requestQueue.addToQueue<UserPoint>(
-        userId,
-        async () => {
-          const user = await this.userDb.selectById(userId);
-          originalPoint = user.point;
-
-          const updatedUser = await this.updateUserPoint(
-            user,
-            amount,
-            TransactionType.CHARGE,
-          );
-          return updatedUser;
-        },
-      );
-
-      return response;
-    } catch (e) {
-      // 충전 중 에러가 발생할 경우, 원래 포인트로 롤백
-      if (originalPoint) this.userDb.insertOrUpdate(userId, originalPoint);
-
-      // HttpException이 발생한 경우, 해당 에러를 throw
-      if (e instanceof HttpException) throw e;
-
-      // 그 외의 에러가 발생한 경우, InternalServerErrorException throw
-      throw new InternalServerErrorException(
-        '포인트 충전 중 시스템 에러가 발생했습니다.',
-      );
-    }
+    return await this.handleTransaction(userId, amount, TransactionType.CHARGE);
   }
 
-  // TODO: 특정 유저의 포인트를 사용하는 기능 구현.
+  // 특정 유저의 포인트를 사용하는 기능 구현.
   async usePoint(userId: number, amount: number): Promise<UserPoint> {
-    let originalPoint: number;
-
     // Validation
     this.validateUserIdAndAmount(userId, amount);
 
-    // 사용 중 에러가 발생할 경우, 에러 처리를 위해 try-catch 문 사용
-    try {
-      const response = this.requestQueue.addToQueue<UserPoint>(
-        userId,
-        async () => {
-          const user = await this.userDb.selectById(userId);
-          originalPoint = user.point;
-
-          const updatedUser = await this.updateUserPoint(
-            user,
-            amount,
-            TransactionType.USE,
-          );
-          return updatedUser;
-        },
-      );
-
-      return response;
-    } catch (e) {
-      // 사용 중 에러가 발생할 경우, 원래 포인트로 롤백
-      if (originalPoint) this.userDb.insertOrUpdate(userId, originalPoint);
-
-      // HttpException이 발생한 경우, 해당 에러를 throw
-      if (e instanceof HttpException) throw e;
-
-      // 그 외의 에러가 발생한 경우, InternalServerErrorException throw
-      throw new InternalServerErrorException(
-        '포인트 사용 중 시스템 에러가 발생했습니다',
-      );
-    }
+    return await this.handleTransaction(userId, amount, TransactionType.USE);
   }
 
+  //#region Private Methods
   // 유저 ID와 충전 및 사용 금액 Validation
   private validateUserIdAndAmount(userId: number, amount: number) {
     const checkUserId = !Number.isInteger(userId) || userId <= 0;
@@ -160,6 +89,32 @@ export class PointService {
 
     if (checkAmount) {
       throw new BadRequestException('충전 및 사용 금액은 0보다 커야 합니다.');
+    }
+  }
+
+  // 포인트 Transaction 처리
+  private async handleTransaction(
+    userId: number,
+    amount: number,
+    type: TransactionType,
+  ): Promise<UserPoint> {
+    let originalPoint: number;
+
+    try {
+      return await this.requestQueue.addToQueue<UserPoint>(userId, async () => {
+        const user = await this.userDb.selectById(userId);
+        originalPoint = user.point;
+
+        const updatedUser = await this.updateUserPoint(user, amount, type);
+        return updatedUser;
+      });
+    } catch (e) {
+      // 에러 발생 시, 원래 포인트로 롤백
+      if (originalPoint) this.userDb.insertOrUpdate(userId, originalPoint);
+      // HttpException이 발생한 경우, 해당 에러를 throw
+      if (e instanceof HttpException) throw e;
+      // 그 외 에러 발생 시, InternalServerErrorException throw
+      throw new InternalServerErrorException('시스템 에러가 발생했습니다.');
     }
   }
 
@@ -183,7 +138,6 @@ export class PointService {
         if (point + amount > 100_000) {
           throw new BadRequestException('포인트 소지 한도는 100,000원 입니다.');
         }
-
         await this.userDb.insertOrUpdate(id, point + amount);
         await this.historyDb.insert(id, amount, type, currentMillis);
         return { id, point: point + amount, updateMillis: currentMillis };
@@ -204,4 +158,5 @@ export class PointService {
         throw new BadRequestException('올바르지 않은 Transaction 입니다.');
     }
   }
+  //#endregion
 }
