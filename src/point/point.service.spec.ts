@@ -4,11 +4,21 @@ import { UserPointTable } from 'src/database/userpoint.table';
 import { PointHistoryTable } from 'src/database/pointhistory.table';
 import { PointHistory, UserPoint } from './point.model';
 import { UserRequestQueue } from 'src/utils/user-request-queue';
+import {
+  USER_POINT_REPOSITORY,
+  UserPointRepository,
+} from './repositories/userpoint.repository';
+import {
+  POINT_HISTORY_REPOSITORY,
+  PointHistoryRepository,
+} from './repositories/pointhistory.repository';
+import { IUserPointRepository } from './repositories/userpoint.repository.interface';
+import { IPointHistoryRepository } from './repositories/pointhistory.repository.interface';
 
 describe('PointService', () => {
   let service: PointService;
-  let userPointTable: UserPointTable;
-  let pointHistoryTable: PointHistoryTable;
+  let userPointTable: IUserPointRepository;
+  let pointHistoryTable: IPointHistoryRepository;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -22,10 +32,10 @@ describe('PointService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        PointService,
         UserRequestQueue,
+        PointService,
         {
-          provide: UserPointTable,
+          provide: USER_POINT_REPOSITORY,
           useValue:
             // userPointTable,
             {
@@ -34,7 +44,7 @@ describe('PointService', () => {
             },
         },
         {
-          provide: PointHistoryTable,
+          provide: POINT_HISTORY_REPOSITORY,
           useValue:
             // pointHistoryTable,
             {
@@ -46,8 +56,10 @@ describe('PointService', () => {
     }).compile();
 
     service = module.get<PointService>(PointService);
-    userPointTable = module.get<UserPointTable>(UserPointTable);
-    pointHistoryTable = module.get<PointHistoryTable>(PointHistoryTable);
+    userPointTable = module.get<UserPointRepository>(USER_POINT_REPOSITORY);
+    pointHistoryTable = module.get<PointHistoryRepository>(
+      POINT_HISTORY_REPOSITORY,
+    );
 
     // 전체 테스트에 기본적으로 사용할 Mocking 함수를 정의 (DB 조회)
     jest.spyOn(userPointTable, 'selectById').mockResolvedValue({
