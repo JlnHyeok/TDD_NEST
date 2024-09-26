@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   HttpException,
+  Inject,
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -8,13 +9,21 @@ import { UserPointTable } from 'src/database/userpoint.table';
 import { PointHistoryTable } from 'src/database/pointhistory.table';
 import { PointHistory, TransactionType, UserPoint } from './point.model';
 import { UserRequestQueue } from 'src/utils/user-request-queue';
+import { IPointHistoryRepository } from './repositories/pointhistory.repository.interface';
+import { IUserPointRepository } from './repositories/userpoint.repository.interface';
+import { USER_POINT_REPOSITORY } from './repositories/userpoint.repository';
+import { POINT_HISTORY_REPOSITORY } from './repositories/pointhistory.repository';
 
 @Injectable()
 // TODO: 코드 리팩토링 필요
 export class PointService {
   constructor(
-    private readonly userDb: UserPointTable,
-    private readonly historyDb: PointHistoryTable,
+    @Inject(USER_POINT_REPOSITORY)
+    private readonly userDb: IUserPointRepository,
+
+    @Inject(POINT_HISTORY_REPOSITORY)
+    private readonly historyDb: IPointHistoryRepository,
+
     private readonly requestQueue: UserRequestQueue,
   ) {}
 
@@ -24,10 +33,8 @@ export class PointService {
     if (!Number.isInteger(userId) || userId <= 0) {
       throw new BadRequestException('올바르지 않은 ID 값 입니다.');
     }
-
     // 포인트 조회 중 에러가 발생할 경우, 에러 처리를 위해 try-catch 문 사용
     try {
-      // UserRequestQueue를 사용하여 동일한 User ID에 대한 요청이 동시에 발생할 경우, 요청을 순차적으로 처리하도록 함.
       const user = await this.userDb.selectById(userId);
       return user;
     } catch (e) {
@@ -43,7 +50,6 @@ export class PointService {
     if (!Number.isInteger(userId) || userId <= 0) {
       throw new BadRequestException('올바르지 않은 ID 값 입니다.');
     }
-
     // 포인트 내역 조회 중 에러가 발생할 경우, 에러 처리를 위해 try-catch 문 사용
     try {
       const history = await this.historyDb.selectAllByUserId(userId);
