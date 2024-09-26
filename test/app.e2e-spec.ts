@@ -22,12 +22,19 @@ describe('AppController (e2e)', () => {
   it('동시 충전 요청 => 요청이 순서대로 들어와야합니다.', async () => {
     // 테스트 데이터
     const userId = 1;
-    const requestAmount = 5;
-    const chargeAmount = [100, 50, 10, 30, 20];
+    // 충전 요청 금액 (총 20개)
+    const chargeAmount = [
+      100, 50, 10, 30, 20, 40, 50, 60, 70, 80, 90, 110, 120, 120, 150, 180, 50,
+      20, 40, 70,
+    ];
+    const requestAmount = chargeAmount.length;
     const transactionType = 0;
 
     // 예상 결과
-    const expectedPoint = [100, 150, 160, 190, 210];
+    const expectedPoint = [
+      100, 150, 160, 190, 210, 250, 300, 360, 430, 510, 600, 710, 830, 950,
+      1100, 1280, 1330, 1350, 1390, 1460,
+    ];
     const expectedHistory = chargeAmount.map(
       (chargeAmount: number, id: number) => {
         return {
